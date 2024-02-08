@@ -1,6 +1,6 @@
 ---
 title: "Lab 4: House Elevation NPV Analysis"
-author: "Your Name"
+author: "Lucia Romero Alston (lmr12)"
 jupyter: julia-1.10
 date: 2024-02-08
 week: 5
@@ -50,3 +50,70 @@ Plots.default(; margin=6Plots.mm)
 include("depthdamage.jl")
 ```
 
+## Building the Case Study
+Here, we are using existing data to build a depth-damage function.
+
+```{julia}
+haz_fl_dept = CSV.read("data/haz_fl_dept.csv", DataFrame) # read in the file
+desc = "Cafeteria Restaurant, structure"
+row = @rsubset(haz_fl_dept, :Description == desc)[1, :] # select the row I want
+dd = DepthDamageData(row) # extract the depth-damage data
+damage_fn = get_depth_damage_function(dd.depths, dd.damages) # get the depth-damage function
+```
+
+Now we must offset the function by the height of the building we are annalyzing in relation to the guage. We can then run a Monte Carlo approach to estemate the expected cost of flooding.
+
+```{julia}
+gauge_dist = GeneralizedExtremeValue(5, 1, 0.1) # hypothetical gauge distribution
+offset = 3.74 # hypothetical height from house to gauge
+house_dist = GeneralizedExtremeValue(gauge_dist.μ - offset, gauge_dist.σ, gauge_dist.ξ)
+
+samples = rand(house_dist, 100_000) .* 1u"ft"
+damages = damage_fn.(samples)
+expected_damages_pct = mean(damages)
+```
+
+These damages are expressed as a percentage of the value fo the house, so we must input data on the actual value of the house to turn this damage amount into cost. I used Zillow in Galveston to get a sense of the value of the homes in the area that I am analyzing. There is a significant range but tend to be around $400,000.
+
+```{julia}
+house_structure_value = 400000
+expected_damages_usd = house_structure_value * expected_damages_pct / 100
+```
+
+To evaluate the cost of elevating we use a piecewise linear function that depends on the area of the hosue and how high we elevate.
+
+```{julia}
+house_area = 4004u"ft^2"
+elevation_cost = get_elevation_cost_function() # gives us a fitted interpolator
+```
+
+## Single Year Function
+This function will tell us our costs and benefits in a single year looking at distribution of flooding, depth-damage function, cost of elevation, house value, and how high the house is elevated in the given year.
+
+```{julia}
+function single_year_cost_benefit(flood_dist, damage_fn, elevation_cost, house_area, house_value, Δh)
+    
+    # calculate the expected damages
+    c_dmg = expected_damages_usd
+
+    # calculate the cost of elevating
+    c_constr = elevation_cost
+
+    # return the total cost and benefit
+    return -c_constr - c_dmg
+end
+```
+
+## NPV Function
+This function will calculate the net present value (NPV) over a T year design window.
+
+```{julia}
+function npv_cost_benefit(flood_dist, damage_fn, elevation_cost, house_area, house_value, Δh, T, discount_rate)
+    # calculate the costs and benefits for each year, and then discount
+    # see above!
+    discount_rate = 0.05
+    T = 10
+    npv = sum([expected_damages_usd * (1 - discount_rate)^(i - 1) for i in 1:T])
+    return npv
+end
+```
