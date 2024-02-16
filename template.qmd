@@ -52,7 +52,6 @@ include("depthdamage.jl")
 
 ## Building the Case Study
 Here, we are using existing data to build a depth-damage function.
-
 ```{julia}
 haz_fl_dept = CSV.read("data/haz_fl_dept.csv", DataFrame) # read in the file
 desc = "Cafeteria Restaurant, structure"
@@ -62,7 +61,6 @@ damage_fn = get_depth_damage_function(dd.depths, dd.damages) # get the depth-dam
 ```
 
 Now we must offset the function by the height of the building we are annalyzing in relation to the guage. We can then run a Monte Carlo approach to estemate the expected cost of flooding.
-
 ```{julia}
 gauge_dist = GeneralizedExtremeValue(5, 1, 0.1) # hypothetical gauge distribution
 offset = 3.74 # hypothetical height from house to gauge
@@ -74,15 +72,13 @@ expected_damages_pct = mean(damages)
 ```
 
 These damages are expressed as a percentage of the value fo the house, so we must input data on the actual value of the house to turn this damage amount into cost. I used Zillow in Galveston to get a sense of the value of the homes in the area that I am analyzing. There is a significant range but tend to be around $400,000.
-
 ```{julia}
 house_structure_value = 400000
 expected_damages_usd = house_structure_value * expected_damages_pct / 100
 ```
 
-To evaluate the cost of elevating we use a piecewise linear function that depends on the area of the hosue and how high we elevate.
-
-
+To evaluate the cost of elevating we use a piecewise linear function that depends on the area of the hosue and how high we elevate. 
+The following are some defined imputs that will be used in the creation of the NPV functions.
 ```{julia}
 house_area = 4004u"ft^2"
 house_value = 400000
@@ -96,7 +92,7 @@ This function will tell us our costs and benefits in a single year looking at di
 function single_year_cost_benefit(flood_dist, damage_fn, elevation_cost, house_area, house_value, Δh)
     
     # calculate the expected damages
-    new_flood_dist = GeneralizedExtremeValue(flood_dist.μ - ustrip(Δh), flood_dist.σ, flood_dist.ξ)
+    new_flood_dist = GeneralizedExtremeValue(flood_dist.μ - ustrip(Δh), flood_dist.σ, flood_dist.ξ) #this distribution takes into consideration the elevation of the home Δh
 
     samples = rand(new_flood_dist, 100_000) .* 1u"ft"
     damages = damage_fn.(samples)
@@ -111,8 +107,6 @@ function single_year_cost_benefit(flood_dist, damage_fn, elevation_cost, house_a
     # return the total cost and benefit
     return -c_constr - c_dmg
 end
-
-test = single_year_cost_benefit(house_dist, damage_fn, elevation_cost, house_area, house_value, 3.0*u"ft")
 ```
 
 ## NPV Function
@@ -120,8 +114,8 @@ This function will calculate the net present value (NPV) over a T year design wi
 
 ```{julia}
 function npv_cost_benefit(house_dist, damage_fn, elevation_cost, house_area, house_value, Δh, T, discount_rate)
-    time = 1:T
-    expected_damages_usd = []
+    time = 1:T # creating an array containing the time over which we will analyze
+    expected_damages_usd = [] # an empty array that we will fill with our cost-benefits
     if time == 1
         year1 = single_year_cost_benefit(house_dist, damage_fn, elevation_cost, house_area, house_value, Δh)
         push!(expected_damages_usd, year1)
@@ -138,20 +132,62 @@ end
 ## House Elevation NPVs
 Now that we have a function for the net present value (NPV) of a home for a given elevations. We can test it out at different elevations.
 
-To begin, we will test the home at an elevation of Δh=3ft as per Galvestons guidelines for land development.
-
+To begin, we will test the home at an elevation of Δh=3ft as per Galvestons guidelines for land development for above the floodplain.
 ```{julia}
-# npv_cost_benefit(damage_fn, elevation_cost, house_area, house_structure_value, offset, 10, discount_rate)
 h3 = npv_cost_benefit(house_dist, damage_fn, elevation_cost, house_area, house_value, 3.0*u"ft", 10, 0.05)
 ```
+
+We also want to test the home at other elevations:
+elevation (Δh) = 0 ft
+```{julia}
+h0 = npv_cost_benefit(house_dist, damage_fn, elevation_cost, house_area, house_value, 0*u"ft", 10, 0.05)
+```
+
+elevation (Δh) = 5 ft
+```{julia}
+h5 = npv_cost_benefit(house_dist, damage_fn, elevation_cost, house_area, house_value, 5*u"ft", 10, 0.05)
+```
+
+elevation (Δh) = 7 ft
+```{julia}
+h7 = npv_cost_benefit(house_dist, damage_fn, elevation_cost, house_area, house_value, 7*u"ft", 10, 0.05)
+```
+
+elevation (Δh) = 9 ft
+```{julia}
+h9 = npv_cost_benefit(house_dist, damage_fn, elevation_cost, house_area, house_value, 9*u"ft", 10, 0.05)
+```
+
+elevation (Δh) = 11 ft
+```{julia}
+h11 = npv_cost_benefit(house_dist, damage_fn, elevation_cost, house_area, house_value, 11*u"ft", 10, 0.05)
+```
+
+elevation (Δh) = 13 ft
+```{julia}
+h13 = npv_cost_benefit(house_dist, damage_fn, elevation_cost, house_area, house_value, 13*u"ft", 10, 0.05)
+```
+
+elevation (Δh) = 15 ft
+```{julia}
+h15 = npv_cost_benefit(house_dist, damage_fn, elevation_cost, house_area, house_value, 15*u"ft", 10, 0.05)
+```
+
+elevation (Δh) = 17 ft
+```{julia}
+h15 = npv_cost_benefit(house_dist, damage_fn, elevation_cost, house_area, house_value, 17*u"ft", 10, 0.05)
+```
+
+At my prediction of Δh=3ft the NPV of costs of construction and damages was around $78,000 compared to the cost of not elevating at all which was aroung $55,000. This goes to show that elevating your home only a little bit can actually cost you more for the price of elevation if it is not enough to make an actual difference when it comes to flooding. As Δh went increasing, costs significantly dropped. Even at Δh=5ft, the cost of elevation and its benefits was around $18,000, saving about $60,000 for a two foot difference. Moving into the double digits (11+), the cost cut down to be in the hundreds, saving any homeowner tens of thousands of dollars in flooding costs. 
 
 ## Sensitivity Analysis
 Assuming the discount rate is uncertain, we can use the Monte Carlo Aapproach to estimate the expected NPV for a range of discount rates.
 
 ```{julia}
 N=20
-discount_rate_dist = Normal(1, 0.5)
-sample3 = rand(discount_rate_dist, N)
-result3 = npv_cost_benefit.(house_dist, damage_fn, elevation_cost, house_area, house_value, 3.0*u"ft", 10, sample3)
-mean(result3)
+discount_rate_dist = Normal(1, 0.5) # the normal distribution of our uncertain discount rate
+sample3 = rand(discount_rate_dist, N) # taking N random values from our discount rate distribution
+result3 = npv_cost_benefit.(house_dist, damage_fn, elevation_cost, house_area, house_value, 3.0*u"ft", 10, sample3) # finding the NPVs for the N different discount rates, still assuming Δh=3ft
+mean(result3) # the mean of the NPVs to estimate over a range of discount rates
 ```
+
