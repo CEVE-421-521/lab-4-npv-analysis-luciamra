@@ -149,8 +149,8 @@ h3 = npv_cost_benefit(house_dist, damage_fn, elevation_cost, house_area, house_v
 Assuming the discount rate is uncertain, we can use the Monte Carlo Aapproach to estimate the expected NPV for a range of discount rates.
 
 ```{julia}
-N=1000000
-discount_rate_dist = Normal(4, 2)
+N=20
+discount_rate_dist = Normal(1, 0.5)
 sample3 = rand(discount_rate_dist, N)
 result3 = npv_cost_benefit.(house_dist, damage_fn, elevation_cost, house_area, house_value, 3.0*u"ft", 10, sample3)
 mean(result3)
