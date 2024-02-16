@@ -143,3 +143,14 @@ expected_damages_usd2 = house_structure_value * expected_damages_pct2 / 100
 npv_cost_benefit(expected_damages_usd2, offset2, 10, discount_rate)
 println("Net present value:", npv)
 ```
+
+## Sensitivity Analysis
+Assuming the discount rate is uncertain, we can use the Monte Carlo Aapproach to estimate the expected NPV for a range of discount rates.
+
+```{julia}
+N=1000000
+discount_rate_dist = normal(4, 2)
+sample3 = rand(discount_rate_dist, N)
+result3 = npv_cost_benefit.(sample3)
+mean(result3)
+```
