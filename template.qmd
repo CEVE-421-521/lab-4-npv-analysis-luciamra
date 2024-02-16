@@ -108,12 +108,38 @@ end
 This function will calculate the net present value (NPV) over a T year design window.
 
 ```{julia}
-function npv_cost_benefit(flood_dist, damage_fn, elevation_cost, house_area, house_value, Δh, T, discount_rate)
-    # calculate the costs and benefits for each year, and then discount
-    # see above!
+# function npv_cost_benefit(house_dist, damage_fn, elevation_cost, house_area, house_value, Δh, T, discount_rate)
+# function npv_cost_benefit(flood_dist, damage_fn, elevation_cost, house_area, house_value, offset, T, discount_rate)
+# function npv_cost_benefit(damage_fn, elevation_cost, house_area, house_structure_value, offset, T, discount_rate)
+function npv_cost_benefit(expected_damages_usd, offset, T, discount_rate)
+    annual_damages = [expected_damages_usd for _ in 1:10] # annual expected damages and costs
     discount_rate = 0.05
-    T = 10
-    npv = sum([expected_damages_usd * (1 - discount_rate)^(i - 1) for i in 1:T])
+    npv = sum(annual_damages .* (1 - discount_rate) .^ (0:9)) # discounting the damages to net present value and adding together
     return npv
 end
+```
+
+## House Elevation NPVs
+Now that we have a function for the net present value (NPV) of a home for a given elevations. We can test it out at different elevations.
+
+To begin, we will test the home at an elevation of Δh=3ft as per Galvestons guidelines for land development.
+
+```{julia}
+# npv_cost_benefit(damage_fn, elevation_cost, house_area, house_structure_value, offset, 10, discount_rate)
+npv_cost_benefit(expected_damages_usd, offset, 10, discount_rate)
+println("Net present value:", npv)
+```
+
+```{julia}
+offset2 = 6.74 # hypothetical height from house to gauge
+house_dist2 = GeneralizedExtremeValue(gauge_dist.μ - offset2, gauge_dist.σ, gauge_dist.ξ)
+
+samples2 = rand(house_dist2, 100_000) .* 1u"ft"
+damages2 = damage_fn.(samples2)
+expected_damages_pct2 = mean(damages2)
+expected_damages_usd2 = house_structure_value * expected_damages_pct2 / 100
+
+#npv_cost_benefit(damage_fn, elevation_cost, house_area, house_structure_value, offset2, 10, 0.05)
+npv_cost_benefit(expected_damages_usd2, offset2, 10, discount_rate)
+println("Net present value:", npv)
 ```
