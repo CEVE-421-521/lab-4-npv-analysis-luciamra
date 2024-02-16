@@ -185,9 +185,13 @@ Assuming the discount rate is uncertain, we can use the Monte Carlo Aapproach to
 
 ```{julia}
 N=20
-discount_rate_dist = Normal(1, 0.5) # the normal distribution of our uncertain discount rate
+discount_rate_dist = Normal(0.5, 0.5) # the normal distribution of our uncertain discount rate
 sample3 = rand(discount_rate_dist, N) # taking N random values from our discount rate distribution
 result3 = npv_cost_benefit.(house_dist, damage_fn, elevation_cost, house_area, house_value, 3.0*u"ft", 10, sample3) # finding the NPVs for the N different discount rates, still assuming Δh=3ft
 mean(result3) # the mean of the NPVs to estimate over a range of discount rates
 ```
 
+## Discussion
+The NPV for different actions can vary significantly even for different types of actions. For instance, we found that varying the Δh by only 2ft can cause a difference of about $60,000. This is extremely important because it helps developers and homeowners understand the importance of building and elevating intentionally. Also, it is clear that the discount rate has a significant effect on the NPV. When analyzed at a height Δh=3ft and a discount rate of 0.05, the NPV=-($78,621.40), but when the discount rate was varied in the Monte Carlo approach and height remained constant, the resulting NPV was NPV=-($39,315.76). This difference for the same height is significant, meaning homeowners and developers should pay close attention to economy when planning to raise their homes.
+
+When running tests and making models like this, it is important to consider that they are not real life, only an immitation of it. There are certain factors that are not included in this analysis that might have affects on the NPV of elevating ones home in real life. These include geographical and soil properties, local and regional politics, climate change, water properties and building ages. These may affect the results because it might make it more difficult or more expensive to elevate the home, making the cost outweigh the benefit more than what is preferred. Local politics can have a huge effect on a home owners likeliness and ability to elevate their home, through making it more accessable and providing aid, or just the opposite, blocking it and making it more difficult or expensive. To adress these limitations, this kind of model can be used as a basis to express trends in elevation, instead of for exact results. home owners and engineers can look to this sort of model to understand the trend that house elevation lovers the costs and damages due to flooding. It can also be combined with other kinds of models thta model other kinds of data in order to try to understand a more clear and overarching picture of the "state of the world".
